@@ -159,7 +159,7 @@ describe("WebPlayer core", () => {
 
     player.setVolume({ percentage: 100 });
     expect(player.getVolume()).toEqual(1);
-    
+
     player.setVolume({ change: -0.5 });
     expect(player.getVolume()).toEqual(0.5);
     player.setVolume({ change: 0.4 });
@@ -170,5 +170,52 @@ describe("WebPlayer core", () => {
     expect(player.getVolume()).toEqual(0);
     player.setVolume({ change: 0.5 });
     expect(player.getVolume()).toEqual(0.5);
+  });
+
+  describe("SGAI mode", () => {
+    it("chooses HlsJsTech on Safari when enableSgai is true", async () => {
+      jest.spyOn(contentType, "getManifestType").mockImplementation(async () => ManifestType.HLS);
+      jest.spyOn(contentType, "canPlayManifestType").mockImplementation(() => true);
+      jest.spyOn(browser, "isSafari").mockImplementation(() => true);
+      jest.spyOn(HlsJsTech, "isSupported").mockImplementation(() => true);
+      jest.spyOn(HlsJsTech.prototype, "load").mockImplementation(async () => { });
+
+      const videoElement = window.document.createElement("video");
+      const player = new WebPlayer({ video: videoElement, enableSgai: true });
+      await player.load("mock-stream");
+      expect(HlsJsTech).toHaveBeenCalledTimes(1);
+      expect(BaseTech).not.toHaveBeenCalled();
+    });
+
+    it("chooses BaseTech on Safari when enableSgai is false", async () => {
+      jest.spyOn(contentType, "getManifestType").mockImplementation(async () => ManifestType.HLS);
+      jest.spyOn(contentType, "canPlayManifestType").mockImplementation(() => true);
+      jest.spyOn(browser, "isSafari").mockImplementation(() => true);
+      jest.spyOn(BaseTech.prototype, "load").mockImplementation(async () => { });
+
+      const videoElement = window.document.createElement("video");
+      const player = new WebPlayer({ video: videoElement, enableSgai: false });
+      await player.load("mock-stream");
+      expect(BaseTech).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to BaseTech on Safari if SGAI enabled but HlsJsTech not supported", async () => {
+      jest.spyOn(contentType, "getManifestType").mockImplementation(async () => ManifestType.HLS);
+      jest.spyOn(contentType, "canPlayManifestType").mockImplementation(() => true);
+      jest.spyOn(browser, "isSafari").mockImplementation(() => true);
+      jest.spyOn(HlsJsTech, "isSupported").mockImplementation(() => false);
+      jest.spyOn(BaseTech.prototype, "load").mockImplementation(async () => { });
+
+      const videoElement = window.document.createElement("video");
+      const player = new WebPlayer({ video: videoElement, enableSgai: true });
+      await player.load("mock-stream");
+      expect(BaseTech).toHaveBeenCalledTimes(1);
+    });
+
+    it("exposes enableSgai option via opts", () => {
+      const videoElement = window.document.createElement("video");
+      const player = new WebPlayer({ video: videoElement, enableSgai: true });
+      expect(player.opts.enableSgai).toBe(true);
+    });
   });
 });
